@@ -47,8 +47,7 @@ def email_currency(**context):
     send_email(
         subject='Daily Currency {}'.format(context['ds']),
         message='',        
-        html_info=get_email_body(gbp,euro,chf,dkk),
-        fromaddr='dontfoimebro@gmail.com',
+        html_info=get_email_body(gbp,euro,chf,dkk),        
         config_file_path='{}/dags/currency/templates/currency.yaml'.format(os.environ.get('AIRFLOW_HOME'))
     )
 
@@ -61,46 +60,3 @@ def get_email_body(gdp,euro,chf,dkk):
         dkk=dkk        
     )
     return html_to_send
-
-def send_email(
-    subject,
-    message,
-    recipients=None,
-    attachments=None, 
-    fromaddr=None,
-    html_info=None,
-    config_file_path=os.environ.get('EMAIL_YAML')
-):
-    with open(config_file_path) as f:
-        email_info = yaml.load(f.read())
-    sender = email_info['from'] if not fromaddr else fromaddr
-    if not recipients:
-        recipients = email_info['to'].split(",")
-    msg = MIMEMultipart()
-    msg['Subject'] = subject
-    msg['From'] = '<{sender}>'.format(sender=sender) 
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    if attachments:
-        for attach in attachments:
-            ctype, encoding = mimetypes.guess_type(attach)
-            if ctype is None or encoding is not None:
-                ctype = "application/octet-stream"
-            maintype, subtype = ctype.split("/", 1)
-            fp = open(attach, "rb")
-            _attachment = MIMEBase(maintype, subtype)
-            _attachment.set_payload(fp.read())
-            fp.close()
-            encoders.encode_base64(_attachment)
-            _attachment.add_header("Content-Disposition", "attachment", filename=attach.split('/')[-1])
-            msg.attach(_attachment)
-
-    if html_info:
-        msg.attach(MIMEText(html_info, 'html'))
-
-    msg.attach(MIMEText(message, 'plain'))
-    server.starttls()
-    server.login(email_info['from'], email_info['key'])
-    text = msg.as_string()
-    server.sendmail(sender, recipients, text)
-    server.quit()
-
