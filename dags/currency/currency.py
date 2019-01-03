@@ -3,7 +3,7 @@ import datetime
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 
-from _currency import (
+from currency._currency import (
     aquire_currency_rates,
     convert_data,
     email_currency
