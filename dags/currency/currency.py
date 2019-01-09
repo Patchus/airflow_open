@@ -3,10 +3,16 @@ import datetime
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 
-from _currency import (
+from currency._currency import (
     aquire_currency_rates,
     convert_data,
-    email_currency
+    email_currency,
+    get_yesterdays_data,
+    upsert_yesterdays_data
+)
+
+from utils.constants import (
+    PSQL_CONN
 )
 
 DAG_ARGS = {
@@ -40,5 +46,28 @@ email_task = PythonOperator(
     python_callable=email_currency,    
     dag=dag
 )
+
+yesterday_task = PythonOperator(
+    task_id='yesterday_currency',
+    python_callable=get_yesterdays_data,
+    op_kwargs={
+        "engine": PSQL_CONN,
+    },    
+    dag=dag
+)
+
+yesterday_upsert = PythonOperator(
+    task_id='yesterday_upsert',
+    python_callable=upsert_yesterdays_data,
+    op_kwargs={
+        "engine": PSQL_CONN,
+    },    
+    dag=dag
+)
+
 pull_task.set_downstream(run_task)
 run_task.set_downstream(email_task)
+yesterday_upsert.set_downstream(yesterday_task)
+yesterday_upsert.set_upstream(run_task)
+yesterday_task.set_upstream(run_task)
+yesterday_task.set_downstream(email_task)
