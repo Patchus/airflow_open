@@ -20,7 +20,7 @@ def aquire_currency_rates(**context):
     return data
 
 def convert_data(**context):
-    currency = context['task_instance'].xcom_pull(task_ids='pull_currency_data')
+    currency = context['task_instance'].xcom_pull(task_ids='pull_currency_data')    
     currency = json.loads(currency)
     
     usd_to_gbp = round((1/currency['rates']['GBP'])/(1/currency['rates']['USD']),3)
@@ -106,8 +106,9 @@ def get_email_body(gbp,euro,chf,dkk,gbp_y,euro_y,chf_y,dkk_y,gbp_d,euro_d,chf_d,
     return html_to_send
 
 def get_yesterdays_data(engine, **context):
-    tpl = env.get_template('currency/templates/currency_yest.sql')    
-    yesterdays_data = pd.read_sql(tpl.render(pull_date=context['ds']), engine)     
+    tpl = env.get_template('currency/templates/currency_yest.sql')
+    pull_time = dt.datetime.strptime((context['execution_date'] - dt.timedelta(days = 2)).strftime('%Y-%m-%d'),'%Y-%m-%d')    
+    yesterdays_data = pd.read_sql(tpl.render(pull_date=pull_time), engine)     
     return yesterdays_data
 
 
@@ -115,5 +116,5 @@ def upsert_yesterdays_data(engine, **context):
     currency = context['task_instance'].xcom_pull(task_ids='convert_data')
     conn = sa.create_engine(engine)
     currency.to_sql('currency_rates_temp',conn,if_exists='replace',index=False)    
-    conn.execute(create_insert_string('currency.currency_rates',currency.columns,['pull_date','currency_name']))
-    conn.execute(create_update_string('currency.currency_rates',currency.columns,['pull_date','currency_name']))
+    conn.execute(create_insert_string('currency_rates',currency.columns,['pull_date','currency_name']))
+    conn.execute(create_update_string('currency_rates',currency.columns,['pull_date','currency_name']))
